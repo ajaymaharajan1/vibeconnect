@@ -1,0 +1,424 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model City {
+  id        String   @id @default(uuid())
+  name      String   @unique // Chennai, Bengaluru
+  state     String   // Tamil Nadu, Karnataka
+  country   String   @default("India")
+  lat       Float
+  lng       Float
+  status    String   @default("ACTIVE") // ACTIVE, COMING_SOON
+  
+  usersPhysical User[]   @relation("PhysicalCityRelation")
+  usersDiscovery User[]  @relation("DiscoveryCityRelation")
+  places    Place[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model User {
+  id                     String             @id @default(uuid())
+  email                  String             @unique
+  password               String
+  name                   String
+  dateOfBirth            DateTime?          // 18+ DOB Validation
+  age                    Int
+  city                   String             @default("Chennai")
+  cityId                 String?
+  physicalCity           City?              @relation("PhysicalCityRelation", fields: [cityId], references: [id])
+  selectedDiscoveryCityId String?
+  discoveryCity          City?              @relation("DiscoveryCityRelation", fields: [selectedDiscoveryCityId], references: [id])
+  neighborhood           String?            // Approximate neighborhood e.g. "Anna Nagar", "Indiranagar"
+  locationPermissionStatus String           @default("NOT_REQUESTED") // NOT_REQUESTED, GRANTED, DENIED
+  
+  bio                    String
+  photoUrl               String
+  additionalPhotos       String             @default("[]") // JSON string array
+  languages              String             @default("[\"English\"]") // JSON string array
+  interests              String             @default("[]") // JSON string array
+  hobbies                String             @default("[]") // JSON string array
+  activities             String             @default("[]") // JSON string array
+  personalityType        String             @default("Ambivert")
+  vibeTraits             String             @default("[]") // JSON string array
+  socialPersonality      String             @default("Social")
+  socialIntentions       String             @default("Friendship & Activity Partners")
+  preferredGroupSize     String             @default("2-4 people")
+  
+  // Verification System
+  verificationStatus     String             @default("NOT_STARTED") // NOT_STARTED, PENDING, VERIFIED, FAILED, EXPIRED, REVIEW_REQUIRED
+  verification           UserVerification?
+  
+  // Role & Admin Moderation
+  role                   String             @default("USER") // USER, MODERATOR, ADMIN
+  isBanned               Boolean            @default(false)
+  banReason              String?
+  
+  // Premium & Subscriptions (Razorpay)
+  isPremium              Boolean            @default(false)
+  subscriptionTier       String?            // MONTHLY, QUARTERLY, YEARLY
+  subscriptionExpiresAt  DateTime?
+  
+  // Privacy Settings
+  privacySettings        String             @default("{\"hideDistance\":false,\"hideOnlineStatus\":false,\"onlyFriendsCanView\":false}")
+  
+  // 2FA OTP & Verification
+  phoneNumber            String?
+  isVerified             Boolean            @default(false)
+  otpCode                String?
+  otpExpiresAt           DateTime?
+  
+  // Interactive Vibe Questionnaire
+  vibeAnswers            String             @default("{}") // JSON string
+  vibeVector             String             @default("{}") // JSON string
+  
+  // "I'm Free" Mode
+  isFree                 Boolean            @default(false)
+  freeStartTime          String?
+  freeEndTime            String?
+  freeLookingFor         String             @default("[]") // JSON string array
+  freeGroupSize          String             @default("2-4 people")
+  
+  meetupReliabilityScore Float              @default(100.0)
+  lat                    Float?             @default(13.0827) // Default Chennai coords
+  lng                    Float?             @default(80.2707)
+  
+  sentConnections        Connection[]       @relation("SentConnections")
+  receivedConnections    Connection[]       @relation("ReceivedConnections")
+  chatMembers            ChatMember[]
+  messages               Message[]
+  communitiesOwned       Community[]        @relation("CommunityOwner")
+  communityMembers       CommunityMember[]
+  eventsCreated          Event[]
+  meetupsCreated         Meetup[]
+  meetupRSVPs            MeetupRSVP[]
+  posts                  Post[]
+  postLikes              PostLike[]
+  postComments           PostComment[]
+  postSaves              PostSave[]
+  notifications          Notification[]
+  eventTickets           EventTicket[]
+  adCampaigns            AdCampaign[]
+  reportsFiled           Report[]           @relation("ReporterRelation")
+  
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+}
+
+model Place {
+  id               String   @id @default(uuid())
+  googlePlaceId    String   @unique
+  name             String
+  category         String   // CAFES, THEATRES, MALLS, RESTAURANTS, GAMING, SPORTS, FITNESS, ACTIVITIES, OUTDOOR, ENTERTAINMENT
+  address          String
+  cityId           String
+  city             City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  lat              Float
+  lng              Float
+  rating           Float    @default(4.5)
+  userRatingsTotal Int      @default(120)
+  isOpenNow        Boolean  @default(true)
+  photoUrl         String?
+  googleMapsUrl    String
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+}
+
+model UserVerification {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          String    @default("VIBE_LIVENESS_AI")
+  status            String    @default("NOT_STARTED") // NOT_STARTED, PENDING, VERIFIED, FAILED, EXPIRED, REVIEW_REQUIRED
+  providerReference String?
+  verifiedAt        DateTime?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+}
+
+model Connection {
+  id          String   @id @default(uuid())
+  requesterId String
+  receiverId  String
+  status      String   @default("pending") // pending, accepted, rejected, cancelled, blocked
+  
+  requester   User     @relation("SentConnections", fields: [requesterId], references: [id])
+  receiver    User     @relation("ReceivedConnections", fields: [receiverId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([requesterId, receiverId])
+}
+
+model ChatRoom {
+  id          String       @id @default(uuid())
+  type        String       @default("DIRECT") // DIRECT, GROUP
+  name        String?
+  meetupId    String?
+  communityId String?
+  
+  members     ChatMember[]
+  messages    Message[]
+  games       ChatGame[]
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model ChatMember {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  joinedAt  DateTime @default(now())
+
+  @@unique([roomId, userId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  roomId    String
+  senderId  String
+  content   String
+  type      String   @default("TEXT") // TEXT, PHOTO, LOCATION, MEETUP_INVITE, GAME_CARD
+  metadata  String?  // JSON string
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+}
+
+model ChatGame {
+  id                String   @id @default(uuid())
+  roomId            String
+  gameType          String   // WOULD_YOU_RATHER, THIS_OR_THAT, TWO_TRUTHS
+  state             String   // JSON string
+  currentTurnUserId String?
+  active            Boolean  @default(true)
+  
+  room              ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+}
+
+model Post {
+  id           String        @id @default(uuid())
+  userId       String
+  communityId  String?
+  content      String
+  photoUrl     String?
+  locationName String?
+  likesCount   Int           @default(0)
+  commentsCount Int          @default(0)
+  
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community    Community?    @relation(fields: [communityId], references: [id])
+  likes        PostLike[]
+  comments     PostComment[]
+  saves        PostSave[]
+  
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  content   String
+  
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+}
+
+model PostSave {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+model Community {
+  id          String            @id @default(uuid())
+  name        String
+  description String
+  category    String
+  coverUrl    String
+  city        String            @default("Chennai")
+  rules       String            @default("[\"Be respectful to all members\", \"No spamming or promo without approval\"]")
+  ownerId     String
+  
+  owner       User              @relation("CommunityOwner", fields: [ownerId], references: [id])
+  members     CommunityMember[]
+  events      Event[]
+  meetups     Meetup[]
+  posts       Post[]
+  
+  createdAt   DateTime          @default(now())
+}
+
+model CommunityMember {
+  id          String    @id @default(uuid())
+  communityId String
+  userId      String
+  role        String    @default("MEMBER") // OWNER, ADMIN, MEMBER
+  
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  joinedAt    DateTime  @default(now())
+
+  @@unique([communityId, userId])
+}
+
+model Event {
+  id          String        @id @default(uuid())
+  title       String
+  description String
+  category    String
+  venueName   String
+  lat         Float?
+  lng         Float?
+  date        String
+  price       Float         @default(0.0)
+  maxCapacity Int           @default(20)
+  isPaid      Boolean       @default(false)
+  status      String        @default("PUBLISHED")
+  
+  creatorId   String
+  communityId String?
+  
+  creator     User          @relation(fields: [creatorId], references: [id])
+  community   Community?    @relation(fields: [communityId], references: [id])
+  tickets     EventTicket[]
+  
+  createdAt   DateTime      @default(now())
+}
+
+model EventTicket {
+  id          String    @id @default(uuid())
+  eventId     String
+  userId      String
+  qrCode      String    // Cryptographic JSON payload
+  status      String    @default("ACTIVE") // ACTIVE, CHECKED_IN, CANCELLED
+  paidAmount  Float     @default(0.0)
+  checkedInAt DateTime?
+  
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now())
+}
+
+model Meetup {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  venueName   String
+  placeId     String?
+  lat         Float?
+  lng         Float?
+  time        String
+  maxCapacity Int          @default(4)
+  minCapacity Int          @default(2)
+  status      String       @default("CONFIRMED") // CONFIRMED, RESCUED, CANCELLED
+  
+  creatorId   String
+  communityId String?
+  
+  creator     User         @relation(fields: [creatorId], references: [id])
+  community   Community?   @relation(fields: [communityId], references: [id])
+  rsvps       MeetupRSVP[]
+  
+  createdAt   DateTime     @default(now())
+}
+
+model MeetupRSVP {
+  id          String    @id @default(uuid())
+  meetupId    String
+  userId      String
+  status      String    @default("INTERESTED") // INTERESTED, GOING, CONFIRMED, CHECKED_IN
+  checkedInAt DateTime?
+  
+  meetup      Meetup    @relation(fields: [meetupId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime  @default(now())
+
+  @@unique([meetupId, userId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  type      String   // MESSAGE, CONNECTION_REQUEST, COMMUNITY_INVITE, MEETUP_REMINDER, EVENT_REMINDER
+  metadata  String?  // JSON string
+  isRead    Boolean  @default(false)
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model AdCampaign {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  description String
+  targetCity  String   @default("Chennai")
+  imageUrl    String
+  linkUrl     String?
+  status      String   @default("ACTIVE") // ACTIVE, PAUSED, COMPLETED
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  reporterId  String
+  targetType  String   // USER, COMMUNITY, POST
+  targetId    String
+  reason      String
+  status      String   @default("PENDING") // PENDING, ACTION_TAKEN, DISMISSED
+  
+  reporter    User     @relation("ReporterRelation", fields: [reporterId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
