@@ -5,15 +5,11 @@ import {
   X,
   User,
   Settings,
-  Bell,
-  Shield,
   ShieldCheck,
   Crown,
   Bookmark,
   HelpCircle,
-  Info,
   LogOut,
-  Sparkles,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,6 +21,8 @@ interface SidebarProps {
   onOpenPremium: () => void;
   onLogout: () => void;
   onNavigateModule: (module: 'home' | 'discover' | 'chats' | 'meetups' | 'profile') => void;
+  onOpenSavedItems?: () => void;
+  onOpenHelp?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -36,6 +34,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenPremium,
   onLogout,
   onNavigateModule,
+  onOpenSavedItems,
+  onOpenHelp,
 }) => {
   if (!isOpen) return null;
 
@@ -70,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
               <div>
                 <div className="flex items-center gap-1">
-                  <h3 className="font-extrabold text-white text-base">{currentUser?.name || 'Guest'}</h3>
+                  <h3 className="font-extrabold text-white text-base">{currentUser?.name || 'Guest User'}</h3>
                   {currentUser?.isVerified && (
                     <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                   )}
@@ -87,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onNavigateModule('profile');
                 onClose();
               }}
-              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center gap-3 transition"
+              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center gap-3 transition cursor-pointer"
             >
               <User className="w-4 h-4 text-violet-400" /> View Profile
             </button>
@@ -97,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenSettings();
                 onClose();
               }}
-              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center gap-3 transition"
+              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center gap-3 transition cursor-pointer"
             >
               <Settings className="w-4 h-4 text-slate-400" /> Settings & Preferences
             </button>
@@ -107,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenVerification();
                 onClose();
               }}
-              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-between transition"
+              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-between transition cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" /> Verification Status
@@ -122,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenPremium();
                 onClose();
               }}
-              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-between transition"
+              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-between transition cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <Crown className="w-4 h-4 text-amber-400" /> VibeConnect Premium
@@ -136,34 +136,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <button
               onClick={() => {
-                alert('Saved Posts, Meetups & Events viewer');
+                onNavigateModule('home');
                 onClose();
               }}
-              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center gap-3 transition"
+              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center gap-3 transition cursor-pointer"
             >
-              <Bookmark className="w-4 h-4 text-pink-400" /> Saved Items
+              <Bookmark className="w-4 h-4 text-pink-400" /> Saved Posts & Meetups
             </button>
 
             <button
               onClick={() => {
-                alert('VibeConnect Help & Support Center');
+                onNavigateModule('discover');
                 onClose();
               }}
-              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center gap-3 transition"
+              className="w-full p-3 rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white flex items-center gap-3 transition cursor-pointer"
             >
-              <HelpCircle className="w-4 h-4 text-cyan-400" /> Help & Support
+              <HelpCircle className="w-4 h-4 text-cyan-400" /> Help & Platform Guide
             </button>
           </div>
         </div>
 
-        {/* Footer Logout */}
+        {/* Footer Logout Button */}
         <div className="p-4 border-t border-slate-800">
           <button
             onClick={() => {
               onLogout();
               onClose();
             }}
-            className="w-full p-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-xs flex items-center justify-center gap-2 border border-rose-500/20 transition"
+            className="w-full p-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-bold text-xs flex items-center justify-center gap-2 border border-rose-500/20 transition cursor-pointer"
           >
             <LogOut className="w-4 h-4" /> Log Out
           </button>

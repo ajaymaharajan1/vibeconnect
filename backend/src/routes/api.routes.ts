@@ -19,9 +19,10 @@ import * as VerificationController from "../controllers/verification.controller"
 
 const router = Router();
 
-// --- Auth Routes & 2FA OTP (with 18+ DOB Check) ---
+// --- Auth Routes & 2FA OTP (with 18+ DOB Check & Google Sign-In) ---
 router.post("/auth/register", AuthController.register);
 router.post("/auth/login", AuthController.login);
+router.post("/auth/google", AuthController.googleAuth);
 router.get("/auth/me", authMiddleware, AuthController.getMe);
 router.post("/auth/send-otp", AuthController.sendOTP);
 router.post("/auth/verify-otp", AuthController.verifyOTP);

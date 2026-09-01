@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BottomNav } from '../components/navigation/BottomNav';
 import { Sidebar } from '../components/navigation/Sidebar';
 import { HomeModule } from '../components/home/HomeModule';
@@ -24,16 +24,17 @@ import { VerificationModal } from '../components/VerificationModal';
 import { ChatWindow } from '../components/ChatWindow';
 
 import { ChatMessage, MeetupItem, CommunityItem, SocialPost } from '../types';
-import { Menu, MapPin, ShieldCheck, Crown, ShieldAlert, Sparkles } from 'lucide-react';
+import { Menu, MapPin, ShieldCheck, Crown, CheckCircle2 } from 'lucide-react';
+import { getApiUrl } from '../config/api.config';
 
 export default function Home() {
   const [activeModule, setActiveModule] = useState<'home' | 'discover' | 'chats' | 'meetups' | 'profile'>('home');
   const [currentCity, setCurrentCity] = useState<string>('Chennai');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   // Modals & Drawers
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isFreeModalOpen, setIsFreeModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isQuestionnaireModalOpen, setIsQuestionnaireModalOpen] = useState(false);
   const [isAIPlannerModalOpen, setIsAIPlannerModalOpen] = useState(false);
@@ -46,23 +47,31 @@ export default function Home() {
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
 
-  // User State
-  const [currentUser, setCurrentUser] = useState<any>({
-    id: 'ajay-1',
-    name: 'Ajay',
-    email: 'ajay@vibeconnect.app',
-    age: 25,
-    city: 'Chennai',
-    bio: 'Tech builder & outdoor enthusiast!',
-    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    languages: ['English', 'Tamil'],
-    interests: ['Tech', 'Photography', 'Coffee'],
-    activities: ['Street Photowalk', 'Running'],
-    socialIntentions: 'Friendship & Activity Partners',
-    personalityType: 'Ambivert',
-    isVerified: true,
-    verificationStatus: 'VERIFIED',
-    isPremium: true,
+  // User Auth State
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vibeconnect_user');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return {
+      id: 'ajay-1',
+      name: 'Ajay',
+      email: 'ajay@vibeconnect.app',
+      age: 25,
+      city: 'Chennai',
+      bio: 'Tech builder & outdoor enthusiast!',
+      photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+      languages: ['English', 'Tamil'],
+      interests: ['Tech', 'Photography', 'Coffee'],
+      activities: ['Street Photowalk', 'Running'],
+      socialIntentions: 'Friendship & Activity Partners',
+      personalityType: 'Ambivert',
+      isVerified: true,
+      verificationStatus: 'VERIFIED',
+      isPremium: true,
+    };
   });
 
   const [myFreeStatus] = useState({
@@ -70,6 +79,24 @@ export default function Home() {
     freeStartTime: '6:00 PM',
     freeEndTime: '9:00 PM',
   });
+
+  // Display toast feedback helper
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Clean Logout Handler
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('vibeconnect_token');
+      localStorage.removeItem('vibeconnect_user');
+    }
+    setCurrentUser(null);
+    setIsSidebarOpen(false);
+    setIsAuthModalOpen(true);
+    showToast('Logged out successfully');
+  };
 
   // People List
   const [people] = useState<any[]>([
@@ -233,7 +260,14 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans relative">
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-bounce">
+          <CheckCircle2 className="w-4 h-4" /> {toastMessage}
+        </div>
+      )}
+
       {/* Top Application Header Bar */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -241,7 +275,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition"
+              className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
               title="Open Navigation Menu"
             >
               <Menu className="w-6 h-6" />
@@ -262,19 +296,27 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsCityModalOpen(true)}
-              className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-violet-300 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 transition"
+              className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-violet-300 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 transition cursor-pointer"
             >
               <MapPin className="w-3.5 h-3.5 text-violet-400" />
               <span>📍 {currentCity}</span>
             </button>
 
-            <button
-              onClick={() => setIsPremiumModalOpen(true)}
-              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1 transition"
-            >
-              <Crown className="w-3.5 h-3.5 fill-amber-400" />
-              <span className="hidden sm:inline">PRO</span>
-            </button>
+            {currentUser ? (
+              <button
+                onClick={handleLogout}
+                className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold px-3 py-1.5 rounded-full transition cursor-pointer"
+              >
+                Logout
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold px-3.5 py-1.5 rounded-full transition shadow-md cursor-pointer"
+              >
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -292,7 +334,7 @@ export default function Home() {
             posts={posts}
             onOpenQuestionnaire={() => setIsQuestionnaireModalOpen(true)}
             onOpenAIPlanner={() => setIsAIPlannerModalOpen(true)}
-            onOpenFreeModal={() => setIsFreeModalOpen(true)}
+            onOpenFreeModal={() => showToast('Opening Free Status modal')}
             onSelectPerson={(id) => setSelectedPublicUserId(id)}
             onSelectEventTicket={(evt) => setSelectedEventTicket(evt)}
             onNavigateModule={(mod) => setActiveModule(mod)}
@@ -333,6 +375,13 @@ export default function Home() {
           />
         )}
 
+        {activeModule === 'events' && (
+          <EventsModule
+            events={events}
+            onSelectEventTicket={(evt) => setSelectedEventTicket(evt)}
+          />
+        )}
+
         {activeModule === 'profile' && (
           <ProfileModule
             currentUser={currentUser}
@@ -358,7 +407,7 @@ export default function Home() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenVerification={() => setIsVerificationModalOpen(true)}
         onOpenPremium={() => setIsPremiumModalOpen(true)}
-        onLogout={() => setCurrentUser(null)}
+        onLogout={handleLogout}
         onNavigateModule={(mod) => setActiveModule(mod)}
       />
 
@@ -367,27 +416,39 @@ export default function Home() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         currentUser={currentUser}
-        onSaveSuccess={(updated) => setCurrentUser(updated)}
+        onSaveSuccess={(updated) => {
+          setCurrentUser(updated);
+          showToast('Settings saved successfully!');
+        }}
       />
 
       <CitySelectorModal
         isOpen={isCityModalOpen}
         onClose={() => setIsCityModalOpen(false)}
         currentCity={currentCity}
-        onCitySelected={(city) => setCurrentCity(city.name)}
+        onCitySelected={(city) => {
+          setCurrentCity(city.name);
+          showToast(`Discovery city changed to ${city.name}`);
+        }}
       />
 
       <VerificationModal
         isOpen={isVerificationModalOpen}
         onClose={() => setIsVerificationModalOpen(false)}
-        onSuccess={() => setCurrentUser({ ...currentUser, isVerified: true, verificationStatus: 'VERIFIED' })}
+        onSuccess={() => {
+          setCurrentUser({ ...currentUser, isVerified: true, verificationStatus: 'VERIFIED' });
+          showToast('Profile Verified! ✓ Verified badge earned');
+        }}
       />
 
       <ProfileEditModal
         user={currentUser}
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}
-        onSaveSuccess={(updated) => setCurrentUser(updated)}
+        onSaveSuccess={(updated) => {
+          setCurrentUser(updated);
+          showToast('Profile updated!');
+        }}
       />
 
       <PublicProfileModal
@@ -409,7 +470,10 @@ export default function Home() {
       <PremiumSubscriptionModal
         isOpen={isPremiumModalOpen}
         onClose={() => setIsPremiumModalOpen(false)}
-        onSuccess={() => setCurrentUser({ ...currentUser, isPremium: true })}
+        onSuccess={() => {
+          setCurrentUser({ ...currentUser, isPremium: true });
+          showToast('VibeConnect Premium Activated!');
+        }}
       />
 
       <AdminDashboardModal
@@ -420,7 +484,14 @@ export default function Home() {
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        onSuccess={(data) => setCurrentUser(data)}
+        onSuccess={(data, token) => {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('vibeconnect_token', token);
+            localStorage.setItem('vibeconnect_user', JSON.stringify(data));
+          }
+          setCurrentUser(data);
+          showToast(`Welcome back, ${data.name}!`);
+        }}
       />
 
       <AIMeetupPlannerModal
@@ -429,6 +500,7 @@ export default function Home() {
         onSelectSpot={(spot) => {
           handleSendMessage(`🤖 AI Meetup Suggestion: ${spot.spotName}`);
           setActiveModule('chats');
+          showToast('Meetup spot added to chat!');
         }}
       />
 
@@ -437,13 +509,16 @@ export default function Home() {
         onClose={() => setShowRescueModal(false)}
         meetupTitle="Saturday Sunset Coffee & Chat"
         confirmedCount={1}
-        onTransferRSVP={() => setShowRescueModal(false)}
+        onTransferRSVP={() => {
+          setShowRescueModal(false);
+          showToast('Meetup RSVP Transferred!');
+        }}
       />
 
       <VibeQuestionnaireModal
         isOpen={isQuestionnaireModalOpen}
         onClose={() => setIsQuestionnaireModalOpen(false)}
-        onSubmitted={() => alert("✨ Vibe Vector Saved!")}
+        onSubmitted={() => showToast('✨ Vibe Vector Saved!')}
       />
     </div>
   );

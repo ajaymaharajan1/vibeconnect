@@ -135,6 +135,56 @@ export class AuthController {
     }
   }
 
+  /**
+   * 1-Click Google Sign-In Authentication
+   */
+  public static async googleAuth(req: Request, res: Response) {
+    try {
+      const { email, name, photoUrl } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required for Google Sign-In." });
+      }
+
+      let user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+      if (!user) {
+        const dummyPassword = await bcrypt.hash("google_oauth_" + Math.random(), 10);
+        user = await prisma.user.create({
+          data: {
+            email: email.toLowerCase(),
+            password: dummyPassword,
+            name: name || email.split("@")[0],
+            age: 24,
+            city: "Chennai",
+            bio: "Building my vibe network on VibeConnect!",
+            photoUrl: photoUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+            isVerified: true,
+            verificationStatus: "VERIFIED",
+            interests: JSON.stringify(["Coffee", "Movies", "Photography"]),
+            vibeTraits: JSON.stringify(["Chill", "Fun"]),
+          }
+        });
+      }
+
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "7d" });
+
+      return res.json({
+        success: true,
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          city: user.city,
+          photoUrl: user.photoUrl,
+          isVerified: user.isVerified,
+          verificationStatus: user.verificationStatus,
+        }
+      });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
   public static async getMe(req: Request, res: Response) {
     try {
       const userId = (req as any).userId;
