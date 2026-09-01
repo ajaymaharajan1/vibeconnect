@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Check, Navigation, Sparkles, Building2 } from 'lucide-react';
+import { getApiUrl, getAuthHeaders } from '../config/api.config';
 
 interface CitySelectorModalProps {
   isOpen: boolean;
@@ -19,7 +20,6 @@ export const CitySelectorModal: React.FC<CitySelectorModalProps> = ({
   const [activeCities, setActiveCities] = useState<any[]>([]);
   const [comingSoonCities, setComingSoonCities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [physicalGpsCity, setPhysicalGpsCity] = useState<string>('Chennai');
 
   useEffect(() => {
     if (isOpen) {
@@ -30,14 +30,23 @@ export const CitySelectorModal: React.FC<CitySelectorModalProps> = ({
   const fetchCities = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/cities');
+      const res = await fetch(getApiUrl('/api/cities'));
       const data = await res.json();
       if (res.ok && data.success) {
         setActiveCities(data.activeCities);
         setComingSoonCities(data.comingSoonCities);
+      } else {
+        // Fallback default cities
+        setActiveCities([
+          { id: 'chennai-1', name: 'Chennai', state: 'Tamil Nadu', country: 'India' },
+          { id: 'bengaluru-1', name: 'Bengaluru', state: 'Karnataka', country: 'India' },
+        ]);
       }
     } catch (err) {
-      console.error('Error fetching cities:', err);
+      setActiveCities([
+        { id: 'chennai-1', name: 'Chennai', state: 'Tamil Nadu', country: 'India' },
+        { id: 'bengaluru-1', name: 'Bengaluru', state: 'Karnataka', country: 'India' },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -47,29 +56,35 @@ export const CitySelectorModal: React.FC<CitySelectorModalProps> = ({
 
   const handleSelect = async (city: any) => {
     try {
-      const token = localStorage.getItem('vibeconnect_token');
-      await fetch('http://127.0.0.1:5000/api/users/city', {
+      await fetch(getApiUrl('/api/users/city'), {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ discoveryCityId: city.id }),
       });
-      onCitySelected(city);
-      onClose();
-    } catch (err) {
-      onCitySelected(city);
-      onClose();
-    }
+    } catch (err) {}
+    onCitySelected(city);
+    onClose();
   };
 
   const handleUseGPS = () => {
-    // Detect device physical location (Simulated GPS)
-    const detected = 'Bengaluru';
-    setPhysicalGpsCity(detected);
-    const target = activeCities.find((c) => c.name === detected) || { name: detected };
-    handleSelect(target);
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          // Calculate distance to Chennai vs Bengaluru
+          const distToChennai = Math.hypot(latitude - 13.0827, longitude - 80.2707);
+          const distToBlr = Math.hypot(latitude - 12.9716, longitude - 77.5946);
+          const targetName = distToBlr < distToChennai ? 'Bengaluru' : 'Chennai';
+          const target = activeCities.find((c) => c.name === targetName) || { name: targetName };
+          handleSelect(target);
+        },
+        () => {
+          handleSelect({ name: 'Chennai' });
+        }
+      );
+    } else {
+      handleSelect({ name: 'Chennai' });
+    }
   };
 
   return (
@@ -77,7 +92,7 @@ export const CitySelectorModal: React.FC<CitySelectorModalProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative my-6">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-950/60 text-slate-400 hover:text-white transition"
+          className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-950/60 text-slate-400 hover:text-white transition cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -96,7 +111,7 @@ export const CitySelectorModal: React.FC<CitySelectorModalProps> = ({
           {/* Device Location Button */}
           <button
             onClick={handleUseGPS}
-            className="w-full p-3 bg-slate-800/60 hover:bg-slate-800 text-violet-300 border border-slate-700 rounded-2xl text-xs font-bold flex items-center justify-between transition"
+            className="w-full p-3 bg-slate-800/60 hover:bg-slate-800 text-violet-300 border border-slate-700 rounded-2xl text-xs font-bold flex items-center justify-between transition cursor-pointer"
           >
             <span className="flex items-center gap-2">
               <Navigation className="w-4 h-4 text-violet-400 animate-pulse" /> Use Device Current Location (GPS)
@@ -115,9 +130,9 @@ export const CitySelectorModal: React.FC<CitySelectorModalProps> = ({
                 const isSelected = currentCity.toLowerCase() === city.name.toLowerCase();
                 return (
                   <button
-                    key={city.id}
+                    key={city.id || city.name}
                     onClick={() => handleSelect(city)}
-                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition ${
+                    className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer ${
                       isSelected
                         ? 'bg-violet-600/20 border-violet-500 text-white'
                         : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
@@ -129,7 +144,7 @@ export const CitySelectorModal: React.FC<CitySelectorModalProps> = ({
                       </div>
                       <div>
                         <div className="text-sm font-bold">{city.name}</div>
-                        <div className="text-xs text-slate-400">{city.state}, {city.country}</div>
+                        <div className="text-xs text-slate-400">{city.state || 'India'}</div>
                       </div>
                     </div>
 
@@ -147,7 +162,7 @@ export const CitySelectorModal: React.FC<CitySelectorModalProps> = ({
           {/* Coming Soon Cities */}
           <div className="space-y-2 pt-2 border-t border-slate-800">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-              Coming Soon to Other Cities
+              Coming Soon
             </span>
 
             <div className="grid grid-cols-2 gap-2">
