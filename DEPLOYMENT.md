@@ -1,69 +1,62 @@
-# 🚀 VibeConnect — Realtime Public Deployment Guide
+# 🚀 VibeConnect — PostgreSQL Production & Realtime Deployment Guide
 
-This guide provides step-by-step instructions to deploy VibeConnect to public cloud servers in real time.
+VibeConnect has been upgraded to **PostgreSQL**, making it 100% compatible with production cloud platforms (Render, Vercel, Supabase, Neon, Railway, Docker VPS).
 
 ---
 
-## 🌐 Option 1: PaaS Deployment (Vercel + Render / Railway) — Recommended
+## 🌐 Option 1: PaaS Deployment (Render PostgreSQL + Vercel) — 100% Free
 
-### Step 1: Deploy Backend (Render.com or Railway.app)
-1. Push your repository to GitHub.
-2. Go to **Render.com** or **Railway.app** → Click **New Web Service**.
-3. Select the `backend/` directory.
-4. Set the build and start commands:
+### Step 1: Create Free PostgreSQL Database on Render.com
+1. Log into **[Render.com](https://render.com)**.
+2. Click **New +** → Select **PostgreSQL**.
+3. Name: `vibeconnect-postgres` → Region: Choose closest → Database: `vibeconnect_db`.
+4. Click **Create Database**.
+5. Once created, copy the **Internal Database URL** or **External Database URL**:
+   `postgresql://vibeuser:password@dpg-xxxx.render.com/vibeconnect_db`
+
+### Step 2: Deploy Backend Service on Render.com
+1. Click **New +** → Select **Web Service**.
+2. Connect your `vibeconnect` GitHub repository (`https://github.com/ajaymaharajan1/vibeconnect.git`).
+3. Set fields:
+   - **Root Directory**: `backend`
    - **Build Command**: `npm ci && npx prisma generate && npm run build`
-   - **Start Command**: `npx prisma db push && node dist/index.js`
-5. Add Environment Variables:
+   - **Start Command**: `npx prisma db push && npx ts-node prisma/seed.ts && node dist/index.js`
+4. Add Environment Variables:
+   - `DATABASE_URL`: *(Paste your Render/Neon/Supabase PostgreSQL connection string)*
    - `NODE_ENV`: `production`
    - `PORT`: `5000`
-   - `JWT_SECRET`: `your_secure_jwt_secret_key`
-   - `ALLOWED_ORIGINS`: `https://your-frontend-domain.vercel.app`
-6. Click **Deploy**. Copy your backend URL (e.g. `https://vibeconnect-api.onrender.com`).
+   - `JWT_SECRET`: `vibeconnect_production_secret_key_2026`
+   - `ALLOWED_ORIGINS`: `*`
+5. Click **Create Web Service**. Render will connect to PostgreSQL, run `prisma db push`, seed the database, and launch your API! Copy your backend URL:
+   `https://vibeconnect-api.onrender.com`
 
-### Step 2: Deploy Frontend (Vercel)
-1. Go to **Vercel.com** → Click **Add New Project**.
-2. Import your GitHub repository and set Root Directory to `frontend/`.
-3. Add Environment Variable:
-   - `NEXT_PUBLIC_API_URL`: `https://vibeconnect-api.onrender.com` (Your Render backend URL)
-4. Click **Deploy**. Vercel will build and publish your live app URL (e.g. `https://vibeconnect.vercel.app`)!
-
----
-
-## 🐳 Option 2: Docker VPS Deployment (DigitalOcean / AWS / Linode)
-
-If you are hosting on a Linux VPS (Ubuntu/Debian):
-
-1. **SSH into your server**:
-   ```bash
-   ssh root@your-server-ip
-   ```
-
-2. **Install Docker & Docker Compose**:
-   ```bash
-   curl -fsSL https://get.docker.com | sh
-   apt-get install docker-compose-plugin -y
-   ```
-
-3. **Clone Repository & Set Environment**:
-   ```bash
-   git clone https://github.com/your-username/vibeconnect.git
-   cd vibeconnect
-   ```
-
-4. **Launch Application Containers**:
-   ```bash
-   docker compose up -d --build
-   ```
-
-5. **Verify Status**:
-   - Web App: `http://your-server-ip:3000`
-   - Backend API: `http://your-server-ip:5000/health`
+### Step 3: Deploy Frontend App on Vercel.com
+1. Go to **[Vercel.com](https://vercel.com)** → Click **Add New...** → **Project**.
+2. Import `vibeconnect` repository.
+3. Settings:
+   - **Framework Preset**: `Next.js`
+   - **Root Directory**: Edit → Select `frontend`.
+   - **Environment Variable**:
+     - `NEXT_PUBLIC_API_URL` = `https://vibeconnect-api.onrender.com`
+4. Click **Deploy**. Vercel will publish your live app at `https://vibeconnect.vercel.app`!
 
 ---
 
-## 🛡️ Production Verification Commands
+## 🐳 Option 2: 1-Click Docker VPS Deployment (DigitalOcean / AWS)
 
-Test that your backend and WebSockets are live:
+Run a unified PostgreSQL + Backend + Frontend stack on any Linux VPS:
+
+```bash
+git clone https://github.com/ajaymaharajan1/vibeconnect.git
+cd vibeconnect
+docker compose up -d --build
+```
+
+---
+
+## 🛡️ Health Verification
+
+Check backend API health:
 ```bash
 curl https://vibeconnect-api.onrender.com/health
 ```
@@ -74,6 +67,6 @@ Expected Response:
   "status": "ok",
   "app": "VibeConnect Backend API",
   "environment": "production",
-  "timestamp": "2026-08-31T16:00:00.000Z"
+  "timestamp": "2026-09-01T10:00:00.000Z"
 }
 ```
